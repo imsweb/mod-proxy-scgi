@@ -259,6 +259,30 @@ static int send_headers(request_rec *r, proxy_conn_rec *conn)
     ap_add_common_vars(r);
     ap_add_cgi_vars(r);
 
+    /* Let users set an env-var to bypass setting SCRIPT_NAME and PATH_INFO sanely. */
+    if(!apr_table_get(r->subprocess_env, "proxy-scgi-stupid")) {
+        /* SCRIPT_NAME should be anything after the worker hostname:port, minus the trailing slash. */
+        char *name = conn->worker->s->name + sizeof(SCHEME) + 3;
+        while(name[0] != '\0' && name[0] != '/')
+            ++name;
+        size_t name_len = strlen(name);
+        if((name_len > 0) && (name[name_len-1] == '/'))
+            --name_len;
+        if(name_len > 0) {
+            char *script_name = apr_pcalloc(r->pool, name_len + 1);
+            memcpy(script_name, name, name_len);
+            apr_table_set(r->subprocess_env, "SCRIPT_NAME", script_name);
+        }
+        else {
+            apr_table_set(r->subprocess_env, "SCRIPT_NAME", "");
+        }
+        /* PATH_INFO should be the request URI with SCRIPT_NAME stripped off the front,
+           so that SCRIPT_NAME + PATH_INFO = URI */
+        char *path_info = r->uri + name_len;
+        /* TODO: check path_info to see if it starts with SCRIPT_NAME? Not sure what to do in that case. */
+        apr_table_set(r->subprocess_env, "PATH_INFO", path_info);
+    }
+
     /*
      * The header blob basically takes the environment and concatenates
      * keys and values using 0 bytes. There are special treatments here:
