@@ -259,6 +259,17 @@ static int send_headers(request_rec *r, proxy_conn_rec *conn)
     ap_add_common_vars(r);
     ap_add_cgi_vars(r);
 
+#ifndef SECURITY_HOLE_PASS_AUTHORIZATION
+    /* ap_add_common_vars strips out the "Authorization" header, unless SECURITY_HOLE_PASS_AUTHORIZATION
+       is set. The docs say "proxy-chain-auth" should pass it along, but it didn't seem to work. */
+    if(apr_table_get(r->subprocess_env, "proxy-chain-auth")) {
+        const char *auth = apr_table_get(r->headers_in, "Authorization");
+        if(auth) {
+            apr_table_set(r->subprocess_env, "HTTP_AUTHORIZATION", auth);
+        }
+    }
+#endif
+
     /* Let users set an env-var to bypass setting SCRIPT_NAME and PATH_INFO sanely. */
     if(!apr_table_get(r->subprocess_env, "proxy-scgi-stupid")) {
         /* SCRIPT_NAME should be anything after the worker hostname:port, minus the trailing slash. */
