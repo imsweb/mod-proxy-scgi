@@ -19,7 +19,7 @@
  * Proxy backend module for the SCGI protocol
  * (http://python.ca/scgi/protocol.txt)
  *
- * André Malo (nd/perlig.de), August 2007
+ * Andr√© Malo (nd/perlig.de), August 2007
  */
 
 #define APR_WANT_MEMFUNC
